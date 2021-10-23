@@ -8,7 +8,10 @@ const {
     updatePost,
     getAllPosts,
     getPostByUserID,
-    getUserByID
+    getUserByID,
+    createTags, 
+    addTagsToPost, 
+    getPostsByTagName
   } = require('./index');
 
 async function dropTables() {
@@ -16,6 +19,8 @@ async function dropTables() {
         console.log("Starting to drop tables...");
 
         await client.query(`
+            DROP TABLE IF EXISTS post_tags;
+            DROP TABLE IF EXISTS tags;
             DROP TABLE IF EXISTS posts;
             DROP TABLE IF EXISTS users;
         `);
@@ -46,6 +51,15 @@ async function createTables() {
                 title VARCHAR(255) NOT NULL,
                 content TEXT NOT NULL,
                 active BOOLEAN DEFAULT true 
+            );
+            CREATE TABLE tags (
+                id SERIAL PRIMARY KEY, 
+                name VARCHAR(255) UNIQUE NOT NULL
+            );
+            CREATE TABLE post_tags (
+                "postId" INTEGER REFERENCES posts(id), 
+                "tagId" INTEGER REFERENCES tags(id), 
+                UNIQUE("postId", "tagId")
             );
         `);
 
@@ -91,15 +105,18 @@ async function createInitialPosts(){
 
         const postAlbert = await createPost({authorId: albert.id, 
                                             title: "Albert Post", 
-                                            content: "lorem 40"})
+                                            content: "lorem 40", 
+                                            tags: ["#happy", "#youcandoanhthing"]})
 
         const postSandra = await createPost({authorId: sandra.id, 
             title: "Sandra Post", 
-            content: "lorem 50"})
+            content: "lorem 50",
+            tags: ["#happy", "#worst-day-ever"]})
 
         const postGlamgal = await createPost({authorId: glamgal.id, 
             title: "GlamGal Post", 
-            content: "lorem 60"})
+            content: "lorem 60",
+            tags: ["#happy", "#youcandoanhthing", "#canmandoeverything"]})
 
         console.log("Finished creating posts!");
 
@@ -108,6 +125,30 @@ async function createInitialPosts(){
         throw error;
     }
 }
+
+// async function createInitialTags(){
+//     try {
+//         console.log("Starting to create tags...");
+
+//         const [happy, sad, inspo, catman] = await createTags([
+//           '#happy', 
+//           '#worst-day-ever', 
+//           '#youcandoanything',
+//           '#catmandoeverything'
+//         ]);
+    
+//         const [postOne, postTwo, postThree] = await getAllPosts();
+    
+//         await addTagsToPost(postOne.id, [happy, inspo]);
+//         await addTagsToPost(postTwo.id, [sad, inspo]);
+//         await addTagsToPost(postThree.id, [happy, catman, inspo]);
+    
+//         console.log("Finished creating tags!");
+//     } catch (error) {
+//         console.error("Error creating tags");
+//         throw error;
+//     }
+// }
   
 async function testDB() {
     try {
@@ -142,6 +183,16 @@ async function testDB() {
         console.log("Getting full user for Albert (id: 1)");
         const albertUser = await getUserByID(users[0].id)
         console.log("Albert's full user", albertUser)
+
+        console.log("Calling updatePost on posts[1], only updating tags");
+        const updatePostTagsResult = await updatePost(posts[1].id, {
+          tags: ["#youcandoanything", "#redfish", "#bluefish"]
+        });
+        console.log("Result:", updatePostTagsResult);
+
+        console.log("Calling getPostsByTagName with #happy");
+        const postsWithHappy = await getPostsByTagName("#happy");
+        console.log("Result:", postsWithHappy);
 
         console.log("Finished database tests!");
     } catch (error) {
